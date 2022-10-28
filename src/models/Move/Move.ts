@@ -87,6 +87,20 @@ export class Move {
     return obj;
   }
 
+  getAvailbleActionMoveKing(cellKey: string, activeSide: PlayerSide, enemySide: PlayerSide) {
+    const enemiesCutInfoKeys = this.getCutCellKeysFigures(enemySide);
+    const [movedCellKeys, cutCellKeys] = this.getActionMoveCellKeys(
+      FIGURE_TYPE.KING,
+      cellKey,
+      activeSide
+    );
+    const moveCellKeysKing = movedCellKeys.filter(
+      (moveCellKey) => enemiesCutInfoKeys.indexOf(moveCellKey) === -1
+    );
+
+    return [moveCellKeysKing, cutCellKeys];
+  }
+
   initMovedCells(
     cellKey: string,
     activeCell: Cell['active'],
@@ -99,14 +113,10 @@ export class Move {
       switch (figureType) {
         case FIGURE_TYPE.KING:
           {
-            const enemiesCutInfoKeys = this.getEnemiesCutCellKeysInfo();
-            const [movedCellKeys, cutCellKeys] = this.getActionMoveCellKeys(
-              figureType,
+            const [moveCellKeysKing, cutCellKeys] = this.getAvailbleActionMoveKing(
               cellKey,
-              activeSide
-            );
-            const moveCellKeysKing = movedCellKeys.filter(
-              (moveCellKey) => enemiesCutInfoKeys.indexOf(moveCellKey) === -1
+              activeSide,
+              this.enemySide
             );
 
             cellKeys[0] = moveCellKeysKing;
@@ -449,8 +459,8 @@ export class Move {
     return [cellKeysMove, getCutCells()];
   }
 
-  getEnemiesCutCellKeysInfo(): string[] {
-    const cellKeys = this.Board.getCellKeyFiguresBySide(this.enemySide);
+  getCutCellKeysFigures(playerSide: PlayerSide): string[] {
+    const cellKeys = this.Board.getCellKeyFiguresBySide(playerSide);
 
     return Array.from(
       new Set(
@@ -459,12 +469,7 @@ export class Move {
             const cellData = this.Board.getCell(cellKey);
 
             if (cellData) {
-              return this.getActionMoveCellKeys(
-                cellData.figure.type,
-                cellKey,
-                this.enemySide,
-                true
-              )[1];
+              return this.getActionMoveCellKeys(cellData.figure.type, cellKey, playerSide, true)[1];
             }
 
             return [];

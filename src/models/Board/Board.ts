@@ -39,6 +39,13 @@ export class Board {
     }
   }
 
+  getKingCellKey(playerSide: PlayerSide) {
+    return Object.entries(this.data).find(
+      ([, cellData]) =>
+        cellData.figure.type === FIGURE_TYPE.KING && cellData.figure.side === playerSide
+    );
+  }
+
   getFiguresBesidesKing(cellKeys: string[]): [string, string[]] {
     let cellKeyKing = '';
 

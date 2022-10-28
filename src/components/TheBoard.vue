@@ -30,7 +30,6 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue';
 import { FIGURE_TYPE, FIGURE_SIDE } from '@/enums/figure';
 import { Game } from '@/models/Game';
 import { isFillCell } from '@/utils/helpers';
@@ -43,14 +42,19 @@ import TheQueen from '@/components/ChessIcons/TheQueen.vue';
 import TheKing from '@/components/ChessIcons/TheKing.vue';
 import FigureWrap from './FigureWrap.vue';
 
-const game = reactive(new Game());
+interface TheBoardProps {
+  game: Game;
+}
+interface TheBoardEmits {
+  (e: 'onClickCell', cellKey: string): void;
+}
+
+defineProps<TheBoardProps>();
+const emit = defineEmits<TheBoardEmits>();
 
 const onClickCell = (cellKey: string) => {
-  game.initActiveCell(cellKey);
-  console.log(cellKey, 'BoardCell clicked');
+  emit('onClickCell', cellKey);
 };
-
-console.log(game.Board.data, 'board data');
 </script>
 
 <style scoped></style>

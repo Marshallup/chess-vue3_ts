@@ -26,6 +26,8 @@ export class Game {
     [FIGURE_SIDE.WHITE]: [],
   };
 
+  private GAME_OVER = false;
+
   availableCellKeys: string[] = [];
 
   private _playerSide: PlayerSide;
@@ -33,6 +35,10 @@ export class Game {
   Board: Board;
 
   Move: Move;
+
+  get isGameOver() {
+    return this.GAME_OVER;
+  }
 
   constructor() {
     this.Board = new Board();
@@ -55,6 +61,10 @@ export class Game {
 
   setPlayerSide(side: PlayerSide) {
     this._playerSide = side;
+
+    this.checkCheck(this.playerSide);
+    this.checkCheck(this.getEnemySide);
+
     this.setAvailableCellKeys(this.getAvailableActionCellKeys());
   }
 
@@ -75,6 +85,14 @@ export class Game {
     this.checkMateInfo[playerSide].checkInfo.figureCellKeyCheck = figureCheck;
   }
 
+  setMate(playerSide: PlayerSide, checkValue = true) {
+    this.checkMateInfo[playerSide].isMate = checkValue;
+    this.GAME_OVER = true;
+    this.Board.disableActiveCell();
+    this.Move.clearMovedCells();
+    this.Move.clearCutedCells();
+  }
+
   getCheck(playerSide = this.playerSide) {
     return this.checkMateInfo[playerSide].isCheck;
   }
@@ -83,21 +101,70 @@ export class Game {
     return this.checkMateInfo[playerSide].checkInfo.figureCellKeyCheck;
   }
 
-  checkCheck(cellKey: string, playerSide: PlayerSide, figureType: FIGURE_TYPE) {
-    const kingCheck = this.Move.getCutCellKeyKing(cellKey, playerSide, figureType);
+  checkMate(playerSide: PlayerSide, enemySide: PlayerSide) {
+    const cellKingInfo = this.Board.getKingCellKey(playerSide);
 
-    if (kingCheck) {
-      console.log(kingCheck, 'kingCheck !!!');
-      this.setCheck(this.getEnemySide, true, kingCheck);
-    } else {
-      this.setCheck(this.getEnemySide, false);
+    if (cellKingInfo) {
+      const [kingCellKey] = cellKingInfo;
+      const kingMoves = this.Move.getAvailbleActionMoveKing(kingCellKey, playerSide, enemySide);
+      const availableCellKeys = this.getAvailableActionCellKeys();
+
+      const saveMovesCellKeys = [
+        ...kingMoves,
+        ...availableCellKeys.filter((cellKey) => cellKey !== kingCellKey),
+      ];
+
+      if (!saveMovesCellKeys.length) {
+        this.setMate(playerSide);
+      }
     }
   }
 
-  getAvailableActionCellKeys() {
+  checkCheck(playerSide: PlayerSide) {
+    const enemySide = Game.getEnemySideBySide(playerSide);
+    const kingDataCell = this.Board.getKingCellKey(playerSide);
+
+    if (kingDataCell) {
+      const figureCellKeys = this.Board.getCellKeyFiguresBySide(enemySide);
+      const [, figuresBesidesKing] = this.Board.getFiguresBesidesKing(figureCellKeys);
+      const getCheck = this.getCheck(playerSide);
+
+      const cutPathsToKingInfo = figuresBesidesKing
+        .map((cellKeyFigure) => ({
+          cellKeyFigure,
+          cutPathToKing: this.Move.getPathCellKeysToKing(
+            cellKeyFigure,
+            enemySide,
+            this.Board.data[cellKeyFigure].figure.type
+          ),
+        }))
+        .flat();
+
+      const cutPathsToKing = cutPathsToKingInfo.filter((item) => item.cutPathToKing.length);
+
+      const hasCheck = cutPathsToKing.length !== 0;
+
+      if (playerSide !== this.playerSide && getCheck && hasCheck) {
+        this.setMate(playerSide);
+        return;
+      }
+      // По дефолту ставим название клетки первой фигуры,
+      // которая поставила шах, без реализации множественного шаха
+      this.setCheck(playerSide, hasCheck, cutPathsToKing[0]?.cellKeyFigure || '');
+
+      if (hasCheck) {
+        this.checkMate(playerSide, enemySide);
+      }
+    }
+  }
+
+  getAvailableActionCellKeys(
+    playerSide = this.playerSide,
+    enemySide = this.getEnemySide,
+    checkCellKey = this.getCheckCellKey()
+  ) {
     const isCheck = this.getCheck();
-    const checkCellKey = this.getCheckCellKey();
-    const allCellKeys = this.Board.getCellKeyFiguresBySide(this.playerSide);
+    const allCellKeys = this.Board.getCellKeyFiguresBySide(playerSide);
 
     if (isCheck && checkCellKey) {
       const availableCellKeys: string[] = [];
@@ -107,11 +174,11 @@ export class Game {
       if (cellCheck) {
         const cellKeysToKing = this.Move.getPathCellKeysToKing(
           checkCellKey,
-          this.getEnemySide,
+          enemySide,
           cellCheck.figure.type
         );
 
-        const cellKeysInfo = this.Move.getActionCellsInfo(cellKeysBesideKing, this.playerSide);
+        const cellKeysInfo = this.Move.getActionCellsInfo(cellKeysBesideKing, playerSide);
 
         Object.entries(cellKeysInfo).forEach(([cellKeyFigure, cellActionKeys]) => {
           cellKeysToKing.forEach((cellKeyToKing) => {
@@ -135,6 +202,10 @@ export class Game {
   }
 
   initActiveCell(cellKey: string) {
+    if (this.isGameOver) {
+      return;
+    }
+
     const { activeCellKey } = this.Board;
     const cell = this.Board.getCell(cellKey);
     const isAvailableActionCellKey = this.isAvailableActionCellKey(cellKey);
@@ -162,8 +233,6 @@ export class Game {
       } else if (isCanActionCell) {
         this.Move.moveFigure(activeCellKey, cellKey, cell.figure.type !== FIGURE_TYPE.CELL);
 
-        this.checkCheck(cellKey, this.playerSide, cell.figure.type);
-
         this.Board.disableActiveCell();
         this.Move.clearMovedCells();
         this.Move.clearCutedCells();
@@ -183,11 +252,15 @@ export class Game {
     }
   }
 
-  get getEnemySide(): PlayerSide {
-    if (this.playerSide === FIGURE_SIDE.WHITE) {
+  static getEnemySideBySide(playerSide: PlayerSide) {
+    if (playerSide === FIGURE_SIDE.WHITE) {
       return FIGURE_SIDE.BLACK;
     }
 
     return FIGURE_SIDE.WHITE;
+  }
+
+  get getEnemySide(): PlayerSide {
+    return Game.getEnemySideBySide(this.playerSide);
   }
 }
