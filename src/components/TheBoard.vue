@@ -1,5 +1,5 @@
 <template>
-  <div class="w-board-size flex items-center flex-wrap">
+  <div class="lg:w-board-size w-[320px] min-w-[320px] flex items-center flex-wrap">
     <TheCell
       v-for="(cell, cellKey, cellIdx) in game.Board.data"
       :key="cellKey"

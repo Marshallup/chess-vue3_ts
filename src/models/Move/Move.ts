@@ -5,7 +5,7 @@ import { getEndIterationNum, getStartIterationNum, splitCellKey } from '@/servic
 import { DirectionInfo, MoveDirType, CellMoveT } from './types';
 import { Board } from '../Board';
 import { Cell } from '../Cell';
-import { PlayerSide } from '../Game/types';
+import { FiguresPlayer, PlayerSide } from '../Game/types';
 
 export class Move {
   private canMovedCells: string[] = [];
@@ -133,7 +133,12 @@ export class Move {
     }
   }
 
-  moveFigure(fromCellKey: string, toCellKey: string, isCutFigure = false) {
+  moveFigure(
+    fromCellKey: string,
+    toCellKey: string,
+    isCutFigure: boolean,
+    onCutCb?: (cellFigure: FiguresPlayer) => void
+  ) {
     const fromCellFigure = this.Board.getCell(fromCellKey)?.figure;
     const toCellFigure = this.Board.getCell(toCellKey)?.figure;
 
@@ -144,6 +149,9 @@ export class Move {
         this.Board.setFigureCell(fromCellKey, toCellFigure);
       } else {
         this.Board.setCell(fromCellKey, false);
+        if (toCellFigure.type !== FIGURE_TYPE.CELL && toCellFigure.type !== FIGURE_TYPE.KING) {
+          onCutCb?.(toCellFigure.type);
+        }
       }
 
       if (fromCellFigure.firstMove) {

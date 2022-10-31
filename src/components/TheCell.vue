@@ -1,7 +1,11 @@
 <template>
   <div
-    :class="cellTypeClass"
-    class="relative w-cell-size h-cell-size flex justify-center items-center select-none"
+    :class="`
+    ${cellTypeClass}
+    relative w-[40px] h-[40px]
+    flex justify-center
+    items-center select-none lg:w-cell-size lg:h-cell-size
+    `"
   >
     <div
       class="absolute w-full h-full border-4"

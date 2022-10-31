@@ -1,30 +1,19 @@
 import { FIGURE_SIDE, FIGURE_TYPE } from '@/enums/figure';
 import { Move } from '../Move';
-import { Board } from '../Board/Board';
-import { CheckMateInfo, PlayerSide, ScoreI } from './types';
+import { Board } from '../Board';
+import { CheckMateInfo, FiguresPlayer, IWinnerScore, PlayerSide, ScoreI } from './types';
 
 export class Game {
-  private checkMateInfo: CheckMateInfo = {
-    [FIGURE_SIDE.WHITE]: {
-      isCheck: false,
-      checkInfo: {
-        figureCellKeyCheck: null,
-      },
-      isMate: false,
-    },
-    [FIGURE_SIDE.BLACK]: {
-      isCheck: false,
-      checkInfo: {
-        figureCellKeyCheck: null,
-      },
-      isMate: false,
-    },
+  private checkMateInfo: CheckMateInfo = Game.getDefaultCheckMateInfo();
+
+  private _currentWinner: PlayerSide | null = null;
+
+  private _winnerScore: IWinnerScore = {
+    [FIGURE_SIDE.WHITE]: 0,
+    [FIGURE_SIDE.BLACK]: 0,
   };
 
-  private score: ScoreI = {
-    [FIGURE_SIDE.BLACK]: [],
-    [FIGURE_SIDE.WHITE]: [],
-  };
+  private _score: ScoreI = Game.getDefaultScore();
 
   private GAME_OVER = false;
 
@@ -36,10 +25,6 @@ export class Game {
 
   Move: Move;
 
-  get isGameOver() {
-    return this.GAME_OVER;
-  }
-
   constructor() {
     this.Board = new Board();
     this.Move = new Move(this.Board, this.getEnemySide);
@@ -47,8 +32,44 @@ export class Game {
     this.availableCellKeys = this.Board.getCellKeyFiguresBySide(FIGURE_SIDE.WHITE);
   }
 
+  get currentWinner() {
+    return this._currentWinner;
+  }
+
+  private set currentWinner(value) {
+    this._currentWinner = value;
+  }
+
+  get isGameOver() {
+    return this.GAME_OVER;
+  }
+
+  get winnerScore() {
+    return this._winnerScore;
+  }
+
+  get score() {
+    return this._score;
+  }
+
+  private set score(value) {
+    this._score = value;
+  }
+
   get playerSide() {
     return this._playerSide;
+  }
+
+  private set playerSide(val) {
+    this._playerSide = val;
+  }
+
+  increaseWinnerScore(playerSide: PlayerSide) {
+    this._winnerScore[playerSide] += 1;
+  }
+
+  addScoreItem(playerSide: PlayerSide, figureType: FiguresPlayer) {
+    this.score[playerSide][figureType] += 1;
   }
 
   setAvailableCellKeys(cellKeys: string[]) {
@@ -85,12 +106,22 @@ export class Game {
     this.checkMateInfo[playerSide].checkInfo.figureCellKeyCheck = figureCheck;
   }
 
-  setMate(playerSide: PlayerSide, checkValue = true) {
-    this.checkMateInfo[playerSide].isMate = checkValue;
-    this.GAME_OVER = true;
+  setMate(playerSide: PlayerSide, withResetGame = false) {
+    const winnerPlayerSide = Game.getEnemySideBySide(playerSide);
+
+    this.checkMateInfo[playerSide].isMate = true;
     this.Board.disableActiveCell();
     this.Move.clearMovedCells();
     this.Move.clearCutedCells();
+
+    this.increaseWinnerScore(winnerPlayerSide);
+    this.currentWinner = winnerPlayerSide;
+
+    if (!withResetGame) {
+      this.GAME_OVER = true;
+    } else {
+      this.resetGame();
+    }
   }
 
   getCheck(playerSide = this.playerSide) {
@@ -217,6 +248,7 @@ export class Game {
     const isRightSide = cell.figure.side === this.playerSide;
     const isFriendFigureCell = isRightSide && cellKey !== activeCellKey;
     const isCanActionCell = cell.canMove || cell.canCut;
+    const isCatFigure = cell.figure.type !== FIGURE_TYPE.CELL;
 
     this.Move.setEnemySide(this.getEnemySide);
 
@@ -231,7 +263,9 @@ export class Game {
         this.Board.setActiveCellKey(cellKey);
         this.Move.initMovedCells(cellKey, cell.active, this.playerSide, cell.figure.type);
       } else if (isCanActionCell) {
-        this.Move.moveFigure(activeCellKey, cellKey, cell.figure.type !== FIGURE_TYPE.CELL);
+        this.Move.moveFigure(activeCellKey, cellKey, isCatFigure, (cellFigure) =>
+          this.addScoreItem(this.playerSide, cellFigure)
+        );
 
         this.Board.disableActiveCell();
         this.Move.clearMovedCells();
@@ -252,6 +286,10 @@ export class Game {
     }
   }
 
+  getAllCountCutFigure(playerSide: PlayerSide) {
+    return Object.values(this.score[playerSide]).reduce((prevVal, curVal) => prevVal + curVal, 0);
+  }
+
   static getEnemySideBySide(playerSide: PlayerSide) {
     if (playerSide === FIGURE_SIDE.WHITE) {
       return FIGURE_SIDE.BLACK;
@@ -262,5 +300,57 @@ export class Game {
 
   get getEnemySide(): PlayerSide {
     return Game.getEnemySideBySide(this.playerSide);
+  }
+
+  resetGame() {
+    this.checkMateInfo = Game.getDefaultCheckMateInfo();
+    this.score = Game.getDefaultScore();
+    this.GAME_OVER = false;
+    this.availableCellKeys = [];
+    this.Board = new Board();
+    this.Move = new Move(this.Board, this.getEnemySide);
+    this.playerSide = FIGURE_SIDE.WHITE;
+    this.availableCellKeys = this.Board.getCellKeyFiguresBySide(FIGURE_SIDE.WHITE);
+    this.currentWinner = null;
+  }
+
+  static getDefaultScore() {
+    return {
+      [FIGURE_SIDE.BLACK]: {
+        [FIGURE_TYPE.BISHOP]: 0,
+        [FIGURE_TYPE.PAWN]: 0,
+        [FIGURE_TYPE.KNIGHT]: 0,
+        [FIGURE_TYPE.PAWN_KING]: 0,
+        [FIGURE_TYPE.QUEEN]: 0,
+        [FIGURE_TYPE.ROOK]: 0,
+      },
+      [FIGURE_SIDE.WHITE]: {
+        [FIGURE_TYPE.BISHOP]: 0,
+        [FIGURE_TYPE.PAWN]: 0,
+        [FIGURE_TYPE.KNIGHT]: 0,
+        [FIGURE_TYPE.PAWN_KING]: 0,
+        [FIGURE_TYPE.QUEEN]: 0,
+        [FIGURE_TYPE.ROOK]: 0,
+      },
+    };
+  }
+
+  static getDefaultCheckMateInfo(): CheckMateInfo {
+    return {
+      [FIGURE_SIDE.WHITE]: {
+        isCheck: false,
+        checkInfo: {
+          figureCellKeyCheck: null,
+        },
+        isMate: false,
+      },
+      [FIGURE_SIDE.BLACK]: {
+        isCheck: false,
+        checkInfo: {
+          figureCellKeyCheck: null,
+        },
+        isMate: false,
+      },
+    };
   }
 }
