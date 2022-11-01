@@ -141,7 +141,7 @@ export class Game {
       const availableCellKeys = this.getAvailableActionCellKeys();
 
       const saveMovesCellKeys = [
-        ...kingMoves,
+        ...kingMoves.flat(),
         ...availableCellKeys.filter((cellKey) => cellKey !== kingCellKey),
       ];
 

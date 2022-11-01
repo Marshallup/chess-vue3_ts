@@ -6,6 +6,7 @@ module.exports = {
       colors: {
         'event-color': 'var(--even-color)',
         'odd-color': 'var(--odd-color)',
+        'active-cell': '#e5e53b',
       },
       width: {
         'cell-size': 'var(--cell-size)',

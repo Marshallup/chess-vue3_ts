@@ -1,20 +1,18 @@
 <template>
   <div
-    :class="`
-    ${cellTypeClass}
-    relative w-[40px] h-[40px]
-    flex justify-center
-    items-center select-none lg:w-cell-size lg:h-cell-size
-    `"
+    class="items-center select-none lg:w-cell-size lg:h-cell-size"
+    :class="{
+      'relative w-[40px] h-[40px] flex justify-center': true,
+      'bg-active-cell': isActive,
+      [cellTypeClass]: !isActive,
+      'cursor-pointer': isActive || isCanCut || isCanMove || isCanAction,
+    }"
   >
     <div
-      class="absolute w-full h-full border-4"
+      class="absolute rounded-full bg-transparent"
       :class="{
-        'border-red-500': isActive,
-        'border-transparent': !isActive,
-        'border-green-500': isCanMove,
-        'border-black': isCanCut,
-        'cursor-pointer': isActive || isCanCut || isCanMove || isCanAction,
+        'md:w-8 md:h-8 w-6 h-6 bg-black/20': isCanMove,
+        'w-[90%] h-[90%] border-4 border-black/20': isCanCut,
       }"
     />
     <slot />
